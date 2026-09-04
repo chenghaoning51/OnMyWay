@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 .venv/
 venv/
 env/
@@ -21,10 +21,19 @@ Desktop.ini
 .env
 .env.*
 
-# ===== 博客构建产物 / 本机私有（不入库）=====
-# plan.md 含服务器 IP 与登录信息，禁止进入任何仓库
-plan.md
+# ===== 本机私有 / 过程文档（定稿前不入库）=====
+# 含 IP 与账号，或仍在改动：docs/ 整套暂不公开（脱敏规则见 AGENTS.md）
+docs/
+AGENTS.md
+CHECKLIST.md
 site/
 image/
 *.bak
 _probe*
+tools/
+
+# 含服务器公网 IP 的本机诊断脚本（部署用脚本不在此列，须保持无凭据）
+scripts/preflight.ps1
+scripts/probe-network.ps1
+scripts/_syntax.ps1
+scripts/sg/
