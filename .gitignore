@@ -1,0 +1,30 @@
+﻿# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local
+*.log
+.env
+.env.*
+
+# ===== 博客构建产物 / 本机私有（不入库）=====
+# plan.md 含服务器 IP 与登录信息，禁止进入任何仓库
+plan.md
+site/
+image/
+*.bak
+_probe*
