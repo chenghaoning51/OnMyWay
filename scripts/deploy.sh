@@ -34,10 +34,12 @@ PULL_REF=${PULL_REF:-main}
 HUGO=${HUGO:-hugo}
 REINDEX_URL=${REINDEX_URL:-http://127.0.0.1:8000/api/reindex}
 REINDEX_TOKEN=${REINDEX_TOKEN:-}
-# 这台 ECS 走 GitHub 的 HTTP/2 时会随机报 curl 16（HTTP2 framing layer）；默认强制 HTTP/1.1，deploy.env 里置空即回到 git 默认
+# 实测这台机到 GitHub:443 间歇不可达，三种症状都出现过：connect 130 s 超时、GnuTLS recv error(-110)、curl 16 HTTP2 framing
+# 对策：强制 HTTP/1.1（deploy.env 置 GIT_HTTP_VERSION= 即回到 git 默认）+ 单次硬超时 + 退避重试
 GIT_HTTP_VERSION=${GIT_HTTP_VERSION:-HTTP/1.1}
 GIT_OPTS=()
 [ -n "$GIT_HTTP_VERSION" ] && GIT_OPTS+=(-c "http.version=$GIT_HTTP_VERSION")
+GIT_NET_TIMEOUT=${GIT_NET_TIMEOUT:-40}   # 单次网络 git 调用的硬超时：卡住的 connect 必须让位给下一次退避重试
 
 MODE=deploy
 case "${1:-}" in
@@ -97,7 +99,7 @@ T0=$(date +%s)
 DEPLOYED=$(cat "$STATE/deployed_sha" 2>/dev/null || echo '')
 
 # 1) 轻量探一次远端 sha（一次 HTTPS 请求，作为 --poll 的判据）
-REMOTE=$(as_blog git "${GIT_OPTS[@]}" -C "$SRC" ls-remote "$PULL_HOST" "heads/$PULL_REF" 2> "$STATE/.lsremote.err" | awk '{print $1}')
+REMOTE=$(as_blog timeout -k 5 "$GIT_NET_TIMEOUT" git "${GIT_OPTS[@]}" -C "$SRC" ls-remote "$PULL_HOST" "heads/$PULL_REF" 2> "$STATE/.lsremote.err" | awk '{print $1}')
 if [ -z "$REMOTE" ]; then
   alert "git ls-remote 失败（出网或权限），本次不动线上：$(tail -c 200 "$STATE/.lsremote.err" | tr -d '\r')"
   exit 3
@@ -112,12 +114,12 @@ fi
 
 # 2) 拉取：首次把浅历史补全（hugo enableGitInfo 需要文件级提交时间），失败退避 2/5/10 s 重试 3 次
 if [ -f "$SRC/.git/shallow" ]; then
-  as_blog git "${GIT_OPTS[@]}" -C "$SRC" fetch --unshallow "$PULL_HOST" "$PULL_REF" >> "$LOGD/deploy.log" 2>&1 || log 'unshallow 未成功（不影响后续 pull）'
+  as_blog timeout -k 5 "$GIT_NET_TIMEOUT" git "${GIT_OPTS[@]}" -C "$SRC" fetch --unshallow "$PULL_HOST" "$PULL_REF" >> "$LOGD/deploy.log" 2>&1 || log 'unshallow 未成功（不影响后续 pull）'
 fi
 rc=1
 for wait_s in 0 2 5 10; do
   [ "$wait_s" -gt 0 ] && sleep "$wait_s"
-  if as_blog git "${GIT_OPTS[@]}" -C "$SRC" pull --ff-only "$PULL_HOST" "$PULL_REF" >> "$LOGD/deploy.log" 2>&1; then rc=0; break; fi
+  if as_blog timeout -k 5 "$GIT_NET_TIMEOUT" git "${GIT_OPTS[@]}" -C "$SRC" pull --ff-only "$PULL_HOST" "$PULL_REF" >> "$LOGD/deploy.log" 2>&1; then rc=0; break; fi
 done
 if [ "$rc" != 0 ]; then alert 'git pull 失败（含 3 次退避重试），线上继续服务旧内容'; exit 3; fi
 HEAD_SHA=$(as_blog git -C "$SRC" rev-parse HEAD)

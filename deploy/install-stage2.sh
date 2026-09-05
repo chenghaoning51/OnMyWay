@@ -44,6 +44,17 @@ if [ "$MODE" = show ]; then
   exit 0
 fi
 
+# 防「自己改写自己」：bash 按字节偏移边读边执行，而 P1 的 git pull 会就地重写仓库里的本文件 ->
+# /tmp 落一份私有副本再 exec 过去，之后脚本内容与仓库变更解耦（副本 = bootstrap 那次 pull 到的版本）
+case "$0" in
+  "$REPO"/*)
+    if cp -f "$0" /tmp/blog-stage2-install.sh && chmod 0700 /tmp/blog-stage2-install.sh; then
+      exec bash /tmp/blog-stage2-install.sh "$@"
+    fi
+    echo '警告：本脚本没能复制到 /tmp，将继续就地执行；P1 若改写本文件，行为不可预测' >&2
+    ;;
+esac
+
 sec 'P0 前置实况（版本 / 资源 / 本脚本身份）'
 printf '本脚本 sha256=%s\n' "$(sha256sum "$0" | cut -c1-16)"
 printf '仓库 HEAD=%s 工作区脏行数=%s\n' "$(sudo -u blog git -C "$REPO" rev-parse --short HEAD 2>/dev/null)" "$(sudo -u blog git -C "$REPO" status --porcelain 2>/dev/null | wc -l)"
@@ -57,7 +68,7 @@ rc=1; tries=0
 for wait_s in 0 2 5 10; do
   tries=$((tries + 1))
   [ "$wait_s" -gt 0 ] && sleep "$wait_s"
-  if sudo -u blog git -C "$REPO" -c http.version=HTTP/1.1 pull --ff-only origin main > "$BK/pull.log" 2>&1; then rc=0; break; fi
+  if timeout -k 5 60 sudo -u blog git -C "$REPO" -c http.version=HTTP/1.1 pull --ff-only origin main > "$BK/pull.log" 2>&1; then rc=0; break; fi
 done
 ck 'git pull --ff-only' "$rc" "第 ${tries} 次尝试成功；HEAD=$(sudo -u blog git -C "$REPO" rev-parse --short HEAD 2>/dev/null) 日志尾=$(tail -c 200 "$BK/pull.log" | tr '\n' ' ')"
 if [ "$rc" != 0 ]; then echo '仓库没更新：后面装的就是旧文件，把上面日志尾回传定性' >&2; exit 3; fi
