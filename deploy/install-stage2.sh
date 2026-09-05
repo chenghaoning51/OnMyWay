@@ -226,7 +226,7 @@ if [ ! -s "$ETC/dns-aliyun.ini" ]; then
 fi
 grep -q 'REPLACE_ME' "$ETC/dns-aliyun.ini" 2>/dev/null; NEED_AK=$?
 mkdir -p /etc/letsencrypt/renewal-hooks/deploy
-printf '#!/bin/sh\n# 续期成功后重载 nginx，让它换上新证书链（DNS-01 不依赖 80，所以只 reload）\nnginx -t && systemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/00-blog-reload-nginx.sh
+printf '#!/bin/sh\n# 续期成功后重载 nginx，让它换上新证书链（DNS-01 不依赖 80，所以只 reload）\nrc=1\nif nginx -t >/dev/null 2>&1; then systemctl reload nginx >/dev/null 2>&1; rc=$?; fi\nlogger -t blog-certbot "deploy-hook rc=$rc cert=${CERT_PATH:-none}"\nexit $rc\n' > /etc/letsencrypt/renewal-hooks/deploy/00-blog-reload-nginx.sh
 chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/00-blog-reload-nginx.sh
 NATIVE=$(systemctl list-timers --all --no-legend 2>/dev/null | grep -ciE 'certbot|letsencrypt')
 if [ "$NATIVE" -gt 0 ]; then
