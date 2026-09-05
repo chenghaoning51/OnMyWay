@@ -238,6 +238,12 @@ else
 fi
 if [ "$MODE" = cert ]; then
   if [ "$NEED_AK" = 0 ]; then echo "$ETC/dns-aliyun.ini 里还有 REPLACE_ME，填好 RAM AK/SK 再重跑 --issue-cert" >&2; exit 7; fi
+  # 键名要和插件 README 逐字一致（D28：模板曾把 dns_aliyun_access_key_secret 写成 dns_aliyun_access_secret）
+  # 调 certbot 之前先断言，错误不延迟到插件内部才暴露；只打印属性名与值长度，绝不打印凭据
+  MISSING=''; for k in dns_aliyun_access_key dns_aliyun_access_key_secret; do grep -qE "^[[:space:]]*${k}[[:space:]]*=" "$ETC/dns-aliyun.ini" || MISSING="$MISSING $k"; done
+  KLEN=$(awk -F= '/^[[:space:]]*dns_aliyun/{k=$1;v=$2;gsub(/[ \t\r]/,"",k);gsub(/[ \t\r]/,"",v);printf "%s=%d ",k,length(v)}' "$ETC/dns-aliyun.ini")
+  ck 'dns-aliyun.ini 键名' "$([ -z "$MISSING" ] && echo 0 || echo 1)" "缺失:${MISSING:-无} ｜ 属性值长度 $KLEN"
+  if [ -n "$MISSING" ]; then echo "键名缺失，已跳过 certbot：只改 $ETC/dns-aliyun.ini 的属性名即可（AK/SK 的值不用重填）" >&2; exit 7; fi
   sec 'P8b 签发/续期（--keep-until-expiring：已有有效证书即直接跳过）'
   MAILARGS=(--register-unsafely-without-email)
   # shellcheck disable=SC1091

@@ -2,4 +2,4 @@
 # 首装时由 install-stage2.sh 复制本模板，权限 root:root 0600；AK/SK 只填在服务器上，绝不进仓库、绝不由脚本回显
 # 键名来自插件 certbot-dns-aliyun（github.com/tengattack/certbot-dns-aliyun）
 dns_aliyun_access_key = REPLACE_ME
-dns_aliyun_access_secret = REPLACE_ME
+dns_aliyun_access_key_secret = REPLACE_ME
