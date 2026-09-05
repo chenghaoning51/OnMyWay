@@ -2,9 +2,8 @@
 # 模板源：deploy/nginx/tuanzi-wow.conf.tpl   参数：/etc/blog/site.env
 #
 # 只在本文件定义 zone 与 map（http 上下文），HTTPS 块复用同名 zone，别在两个文件里重复定义。
-# default_server 不给本文件：实测这台机 sites-enabled/ 是空的，404 占位块在 /etc/nginx/nginx.conf 里
-# （Ubuntu 22.04 打包自带 listen 80 default_server + server_name _ + return 404），本文件只按 server_name 命中
-# 未被任何 server_name 命中的 Host（含乱扫 IP 的访问）因此一律 404，不会落到博客
+# default_server 归 00-default 那个占位块（阶段 0 自己装的：只 listen default_server + server_name _ + return 404），本文件不抢
+# server_name 命中；未被任何 server_name 命中的 Host（含乱扫 IP 的访问）一律 404，不会落到博客
 
 limit_req_zone $binary_remote_addr zone=blog_req:2m rate=10r/s;
 limit_req_zone $binary_remote_addr zone=deploy_req:2m rate=5r/s;

@@ -70,11 +70,9 @@ for wait_s in 0 2 5 10; do
   [ "$wait_s" -gt 0 ] && sleep "$wait_s"
   if timeout -k 5 60 sudo -u blog git -C "$REPO" -c http.version=HTTP/1.1 pull --ff-only origin main > "$BK/pull.log" 2>&1; then rc=0; break; fi
 done
-ck 'git pull --ff-only' "$rc" "第 ${tries} 次尝试成功；HEAD=$(sudo -u blog git -C "$REPO" rev-parse --short HEAD 2>/dev/null) 日志尾=$(tail -c 200 "$BK/pull.log" | tr '\n' ' ')"
+HEAD_NOW=$(sudo -u blog git -C "$REPO" rev-parse --short HEAD 2>/dev/null)
+ck 'git pull --ff-only' "$rc" "第 ${tries} 次尝试成功｜HEAD=$HEAD_NOW｜日志尾=$(tail -c 160 "$BK/pull.log" | tr '\n' ' ')"
 if [ "$rc" != 0 ]; then echo '仓库没更新：后面装的就是旧文件，把上面日志尾回传定性' >&2; exit 3; fi
-ck 'git pull --ff-only' "$rc" "HEAD=$(sudo -u blog git -C "$REPO" rev-parse --short HEAD 2>/dev/null) 日志尾=$(tail -c 140 "$BK/pull.log" | tr '\n' ' ')"
-if [ "$rc" != 0 ]; then echo '仓库没更新：后面装的就是旧文件，先解决再重跑' >&2; exit 3; fi
-
 # 仓库里只要有一个 CRLF 文件被当成脚本/模板用，就会产生带 \r 的 nginx 配置与跑不动的 bash —— 装之前先整体体检
 CRLF_HITS=$(grep -rlI $'\r' "$REPO/deploy" "$REPO/scripts" 2>/dev/null | tr '\n' ' ')
 if [ -n "$CRLF_HITS" ]; then echo "检出 CR 的文件：$CRLF_HITS" >&2; exit 8; fi
@@ -89,7 +87,8 @@ for f in scripts/deploy.sh scripts/deploy-hook.py; do
   chmod 0755 "$BIN/$(basename "$f")"; chown root:root "$BIN/$(basename "$f")"
 done
 bash -n "$BIN/deploy.sh" 2> "$BK/bashn.log"; ck 'deploy.sh 语法' "$?" "$(cat "$BK/bashn.log")"
-python3 -m py_compile "$BIN/deploy-hook.py" 2> "$BK/pyc.log"; ck 'deploy-hook.py 语法' "$?" "$(tail -c 200 "$BK/pyc.log")"
+python3 -c 'import sys; compile(open(sys.argv[1], encoding="utf-8").read(), sys.argv[1], "exec")' "$BIN/deploy-hook.py" 2> "$BK/pyc.log"; ck 'deploy-hook.py 语法' "$?" "$(tail -c 200 "$BK/pyc.log")"
+rm -rf -- "$BIN/__pycache__"   # 上一版 py_compile 留下的残骸，别混进 bin 清单
 ls -l "$BIN" | awk 'NR>1{print "  " $1, $3":"$4, $9}'
 
 sec 'P3 /etc/blog 与凭据位（只建不覆盖，权限收紧）'
@@ -140,20 +139,40 @@ chmod 0644 /etc/nginx/snippets/blog-deploy-allow.conf
 ln -sfn /etc/nginx/sites-available/$VHOST.conf /etc/nginx/sites-enabled/$VHOST.conf
 if [ "$HAVE_CERT" = 1 ]; then ln -sfn /etc/nginx/sites-available/$VHOST.ssl.conf /etc/nginx/sites-enabled/$VHOST.ssl.conf; note '证书已就绪，HTTPS 站块已启用'; else rm -f /etc/nginx/sites-enabled/$VHOST.ssl.conf; note '证书未签发，本轮只启用 80（DNS-01 见 --issue-cert）'; fi
 printf 'sites-enabled: %s\n' "$(ls -1 /etc/nginx/sites-enabled/ 2>/dev/null | tr '\n' ' ')"
-sec 'P5 压缩与模块探测（apt 版 nginx 未必带 brotli，缺就不写指令，退回 gzip）'
+sec 'P5 压缩与模块探测（apt 版 nginx 无 brotli 就只写 gzip；逐指令判重，主配置已有的绝不覆写）'
 BROTLI=0; nginx -V 2>&1 | grep -qE 'brotli' && BROTLI=1
 BMSG=无-退回gzip; [ "$BROTLI" = 1 ] && BMSG=有
 note 'brotli 模块' "$BMSG"
-WROTE_COMP=0
 TYPES='text/css text/plain text/xml application/javascript application/json application/manifest+json application/xml image/svg+xml'
-if nginx -T 2>/dev/null | grep -qE '^[[:space:]]*gzip_types'; then
-  note 'gzip_types' '主配置里已有，不重复写（同名指令写两遍 nginx -t 直接报 duplicate）'
+# 探针数据 = nginx -T 的全部生效配置，但要排除我们自己这份 drop-in：
+# 否则第二次跑会把「上一轮自己写的行」当成主配置已有 -> 静默退化成只剩 gzip on（D24）
+# nginx -T 本身带配置校验，它失败就说明当前磁盘配置是坏的，探针不可信 -> 宁可不写
+WROTE_COMP=0
+COMP_CONF=/etc/nginx/conf.d/zz-blog-compression.conf
+if nginx -T > "$BK/nginx-T.txt" 2> "$BK/nginx-T.err"; then
+  awk '/^# configuration file /{keep=(index($0,"zz-blog-compression.conf")==0)} keep' "$BK/nginx-T.txt" > "$BK/probe.txt"
+  has_dir() { grep -qE "^[[:space:]]*$1[[:space:]]" "$BK/probe.txt"; }
+  add_dir() { if has_dir "$1"; then printf '# %-16s 主配置已有，跳过\n' "$1"; else printf '%s %s;\n' "$1" "$2"; fi; }
+  {
+    printf '# 生成物（勿手改）：install-stage2.sh 逐指令判重，只补主配置里缺的那几条。\n'
+    printf '# 这些指令在 http 上下文只能出现一次，写重了 nginx -t 直接 emerg: "gzip" directive is duplicate。\n'
+    add_dir gzip on
+    add_dir gzip_vary on
+    add_dir gzip_comp_level 5
+    add_dir gzip_min_length 1024
+    add_dir gzip_proxied any
+    add_dir gzip_types "$TYPES"
+    if [ "$BROTLI" = 1 ]; then
+      add_dir brotli on
+      add_dir brotli_comp_level 5
+      add_dir brotli_min_length 1024
+      add_dir brotli_types "$TYPES"
+    fi
+  } > "$COMP_CONF"
+  chmod 0644 "$COMP_CONF"; WROTE_COMP=1
+  note '压缩 drop-in' "已写 $COMP_CONF ｜ 探针见 $(wc -l < "$BK/probe.txt") 行 ｜ 跳过 $(grep -c '主配置已有' "$COMP_CONF") 条 ｜ 实补 $(grep -cE '^[a-z]' "$COMP_CONF") 条"
 else
-  { printf 'gzip on;\ngzip_vary on;\ngzip_comp_level 5;\ngzip_min_length 1024;\ngzip_proxied any;\ngzip_types %s;\n' "$TYPES"
-    [ "$BROTLI" = 1 ] && printf 'brotli on;\nbrotli_comp_level 5;\nbrotli_min_length 1024;\nbrotli_types %s;\n' "$TYPES"
-    true; } > /etc/nginx/conf.d/zz-blog-compression.conf
-  chmod 0644 /etc/nginx/conf.d/zz-blog-compression.conf; WROTE_COMP=1
-  note '压缩 drop-in' "已写 /etc/nginx/conf.d/zz-blog-compression.conf（brotli=$BROTLI）"
+  note '压缩 drop-in' "nginx -T 失败 -> 本轮不写，保留原压缩配置；报错随 P6 定性：$(tail -c 200 "$BK/nginx-T.err" | tr -d '\n')"
 fi
 
 sec 'P6 配置校验：nginx -t 不过就整批回滚到安装前'
