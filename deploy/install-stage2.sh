@@ -198,8 +198,10 @@ systemd-analyze verify /etc/systemd/system/blog-*.service /etc/systemd/system/bl
 note 'systemd-analyze verify' "$(wc -l < "$BK/unit-verify.log") 行提示（为空即无告警）：$(head -c 300 "$BK/unit-verify.log" | tr '\n' ' ')"
 systemctl daemon-reload; ck 'daemon-reload' "$?" "unit 文件已重读"
 # 只 enable 两个「常驻/定时」单元：blog-poll.service 是 oneshot 且无 [Install]，由 timer 拉起，enable 它会报错
-systemctl enable blog-deploy-hook.service blog-poll.timer > "$BK/enable.log" 2>&1
-ck 'enable hook + poll timer' "$?" "$(tr '\n' ' ' < "$BK/enable.log" | head -c 160)"
+# 必须 --now：enable 只建符号链接、不启动。实跑就是栽在这：timer 没激活 -> 分钟级更新的主链路根本没跑（D26）
+systemctl enable --now blog-deploy-hook.service blog-poll.timer > "$BK/enable.log" 2>&1
+ck 'enable --now hook + poll timer' "$?" "$(tr '\n' ' ' < "$BK/enable.log" | head -c 160)"
+ck 'blog-poll.timer 已激活' "$([ "$(systemctl is-active blog-poll.timer 2>&1)" = active ] && echo 0 || echo 1)" "is-active=$(systemctl is-active blog-poll.timer 2>&1) ｜ 下次=$(systemctl list-timers --no-legend blog-poll.timer 2>/dev/null | awk '{print $2, $3, $4}')（为空=只 enable 没 start）"
 systemctl restart blog-deploy-hook.service; sleep 1
 ck '9100 只绑回环' "$(ss -ltn 2>/dev/null | grep -q '127.0.0.1:9100' && echo 0 || echo 1)" "$(ss -ltnp 2>/dev/null | grep ':9100' | head -1)"
 ck '公网面未泄漏 9100/8000' "$(ss -ltn 2>/dev/null | grep -qE '0\.0\.0\.0:(9100|8000)' && echo 1 || echo 0)" "$(ss -ltn | awk 'NR>1{print $4}' | sort -u | tr '\n' ' ')"
@@ -266,6 +268,9 @@ fi
 sec 'P11 端到端自检（回环 + Host 头：备案审核期同样能验，只有域名公网维度被云平台拦）'
 code() { curl -s -o /dev/null -w '%{http_code}' --noproxy '*' -m 8 "$@"; }   # 失败时 curl 自己就输出 000，别再 || echo 一次
 H="Host: $SITE_DOMAIN"
+# 裸 127.0.0.1 当 Host 只会命中 default_server 的 404，验不出 IP 直访；要用 site.env 里的公网 IP 作 Host（D25）
+IPSN_IP="${IPSERVERNAME:-${ECS_IP:-}}"
+IPSN_EXPECT=200; [ -z "$IPSN_IP" ] && IPSN_EXPECT=404   # 备案生效后把 IPSERVERNAME 置空 -> IP 直访回到 404 占位
 C1=$(code -H "$H" http://127.0.0.1/)
 ck 'GET / 首页 200' "$([ "$C1" = 200 ] && echo 0 || echo 1)" "code=$C1"
 C2=$(code -H "$H" http://127.0.0.1/python/)
@@ -273,7 +278,8 @@ ck 'GET /python/ 分区页 200' "$([ "$C2" = 200 ] && echo 0 || echo 1)" "code=$
 C3=$(code -H "$H" http://127.0.0.1/no-such-page-404)
 ck 'GET 不存在的页面 404（不是 500，见 §0.2 K8）' "$([ "$C3" = 404 ] && echo 0 || echo 1)" "code=$C3"
 C4=$(code http://127.0.0.1/)
-note '无 Host 头（IP 直访）' "code=$C4 ｜ 备案期 site.env 里 IPSERVERNAME 有值时它应落到博客=200；备案后置空即回到 default_server 的 404"
+C5=$(code -H "Host: $IPSN_IP" http://127.0.0.1/)
+ck 'IP 直访命中博客' "$([ "$C5" = "$IPSN_EXPECT" ] && echo 0 || echo 1)" "Host=<公网IP>=$C5 期望=$IPSN_EXPECT ｜ 裸 Host 127.0.0.1=$C4（必为 404，落到 00-default 占位）"
 printf '响应头（页面）：\n'; curl -sI -H "$H" http://127.0.0.1/ --noproxy '*' | grep -iE '^(HTTP/|cache-control|content-type|server|x-content|strict)' | sed 's/^/  /'
 CSS=$(find /srv/blog/current/ -type f -name '*.css' 2>/dev/null | head -1)   # 末尾斜杠：find 才会跟着 current 这个软链
 printf '响应头（资源 %s）：\n' "$(basename "${CSS:-none}")"; curl -sI -H "$H" "http://127.0.0.1${CSS#/srv/blog/current}" --noproxy '*' --compressed | grep -iE '^(HTTP/|cache-control|content-type|content-encoding)' | sed 's/^/  /'
