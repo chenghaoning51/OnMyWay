@@ -243,17 +243,21 @@ if [ "$MODE" = cert ]; then
   # shellcheck disable=SC1091
   . "$ETC/site.env"
   [ -n "${CERTBOT_EMAIL:-}" ] && MAILARGS=(-m "$CERTBOT_EMAIL")
-  /usr/local/bin/certbot certonly --non-interactive --keep-until-expiring "${MAILARGS[@]}" \
+  [ "${MAILARGS[0]}" != "-m" ] && note '无邮箱注册' 'LE 不会发到期满提醒邮件；想收就在 /etc/blog/site.env 填 CERTBOT_EMAIL=xxx 后重跑 --issue-cert（阶段 4 另有本地告警兜底）'
+  # certbot 2.x 起必须显式 --agree-tos：只给 --non-interactive 不会替你同意，而是直接退出（实跑栽过一次）
+  /usr/local/bin/certbot certonly --non-interactive --agree-tos --no-eff-email --keep-until-expiring "${MAILARGS[@]}" \
     --authenticator dns-aliyun --dns-aliyun-credentials "$ETC/dns-aliyun.ini" \
     -d "$SITE_DOMAIN" -d "$SITE_WWW" > "$BK/certbot.log" 2>&1; crc=$?
-  ck 'certbot certonly' "$crc" "$(tail -c 300 "$BK/certbot.log" | tr '\n' ' ')"
+  ck 'certbot certonly' "$crc" "$(tail -c 400 "$BK/certbot.log" | tr '\n' ' ')"
   if [ "$crc" = 0 ]; then
+    /usr/local/bin/certbot certificates 2>/dev/null | awk '/Certificate Name|Domains|Expiry Date/{print "  "$0}'
     note '续跑安装' '证书已就绪，重跑一次 install（不带参数）以启用 443 站块与 www 跳转'
   else
     note '证书未签出' '把上面 certbot 输出尾部回传定性；期间 80 与 timer 更新链路不受影响'
   fi
   exit "$crc"
 fi
+
 sec 'P9 小结（进入发布与自检前）'
 printf 'pass=%s fail=%s note=%s ｜ 备份=%s\n' "$PASS" "$FAIL" "$NOTE" "$BK"
 
