@@ -1,0 +1,21 @@
+/* 中文排版与代码块覆写。加载顺序在 PaperMod 之后（partials/extend_head.html），故可直接覆写。
+   类名沿用 PaperMod 约定：.entry-content / .entry-header / .post-content / .highlight。1.8 落地后逐条复核。 */
+
+/* 阅读节奏：中文正文行高与段距 */
+.entry-content { line-height: 1.9; letter-spacing: 0.01em; }
+.entry-content p { margin: 0 0 1.15em; }
+.entry-content li { line-height: 1.85; }
+.entry-content blockquote { margin: 1.2em 0; }
+
+/* 表格与长链接不撑破容器 */
+.entry-content table { display: block; overflow-x: auto; white-space: nowrap; }
+.entry-content a { overflow-wrap: anywhere; }
+
+/* 代码块：行号列不参与选中复制，字号略小于正文 */
+.highlight pre { font-size: 0.88em; line-height: 1.65; }
+.lntable { width: auto; }
+.lntable td:first-child { user-select: none; -webkit-user-select: none; }
+code { word-break: break-word; }
+
+/* 暗色下代码块与页面底色贴合（PaperMod 用 html[data-theme=dark]） */
+html[data-theme=dark] .highlight { border-color: rgb(49 54 61); }

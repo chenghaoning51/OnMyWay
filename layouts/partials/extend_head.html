@@ -1,0 +1,6 @@
+{{- /* 本地样式挂载点：Chroma 高亮 + 中文排版覆写。经 Hugo pipes 压缩并加指纹，页面零外部请求 */ -}}
+{{- range $css := slice "css/syntax.css" "css/override.css" -}}
+  {{- with resources.Get $css | minify | fingerprint -}}
+    <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" crossorigin="anonymous">
+  {{- end -}}
+{{- end -}}

@@ -1,0 +1,122 @@
+# Hugo 站点配置 · tuanzi-wow.cn（Hugo 0.165.0 extended + PaperMod）
+# 参数与 docs/plan.md 阶段 1 一致；改这里等于改技术路线，需同步 plan.md
+
+baseURL = "https://tuanzi-wow.cn/"
+locale = "zh-CN"
+defaultContentLanguage = "zh-cn"
+hasCJKLanguage = true            # 中文按字计数：阅读时长与字数统计的前提
+timeZone = "Asia/Shanghai"
+title = "On My Way"
+theme = "PaperMod"
+publishDir = "site"              # 产物目录已 gitignore，服务器侧 releases 由它生成
+enableGitInfo = true             # lastmod 取 git 提交时间，配合阶段 2 的 pull 式更新
+enableRobotsTXT = true
+enableEmoji = true
+summaryLength = 70
+
+[pagination]
+  pagerSize = 10
+
+[languages]
+  [languages.zh-cn]
+    label = "简体中文"
+    weight = 1
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+
+[outputs]
+  home = ["html", "rss", "json"]   # json 供站内搜索页与将来自建索引复用
+  section = ["html", "rss"]
+  term = ["html", "rss"]
+
+[params]
+  dateFormat = "2006-01-02"   # 必须是 params 级键：主题读 site.Params.dateFormat，写在根部会静默无效
+  description = "学习过程的整理与记录：Python 基础、Agent、RAG、Prompt Engineering 与框架实践"
+  keywords = ["Python", "Agent", "RAG", "Prompt Engineering", "学习笔记"]
+  author = "chenghaoning51"
+  mainSections = ["python", "Agent", "RAG", "PromptEngineering", "Frameworks"]
+  defaultTheme = "auto"            # 暗色跟随系统
+  ShowReadingTime = true
+  ShowWordCount = true
+  ShowBreadcrumbs = true
+  ShowCodeCopyButtons = true
+  ShowPostNavLinks = true
+  ShowPagerSize = true
+  ShowShareButtons = false         # 不引任何第三方按钮
+  ShowScrollToTop = true
+  ShowToc = true
+  ShowLastMod = true
+  ShowFullTextinRSS = true
+  ShowAuthors = false
+
+  [params.profileMode]
+    enabled = true
+    title = "On My Way"
+    subtitle = "战个未来吧 · 学习笔记与工程实践"
+    imageUrl = "/img/avatar.webp"
+    imageWidth = 128
+    imageHeight = 128
+    imageTitle = "avatar"
+    [[params.profileMode.buttons]]
+      name = "笔记"
+      url = "/python/"
+    [[params.profileMode.buttons]]
+      name = "分类"
+      url = "/categories/"
+    [[params.profileMode.buttons]]
+      name = "归档"
+      url = "/archives/"
+
+
+
+[markup]
+  [markup.goldmark.renderer]
+    unsafe = true                  # 笔记里保留了少量内联 HTML
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 3
+  [markup.highlight]
+    codeFences = true
+    guessSyntax = true             # 未标语言的代码块也尽力高亮
+    noClasses = false              # 用 class + 本地 syntax.css：产物小、可随暗色主题换色
+    lineNos = true
+    lineNumbersInTable = true
+    tabWidth = 4
+    wrap = false
+
+[imaging]
+  resampleFilter = "Lanczos"
+  quality = 82
+  anchor = "smart"
+
+[minify]
+  disableXML = true                # sitemap/rss 保持可读且部分校验器不吃压缩 XML
+  minifyOutput = true
+[[menus.main]]
+  name = "笔记"
+  pageRef = "/python"
+  weight = 10
+
+[[menus.main]]
+  name = "分类"
+  pageRef = "/categories"
+  weight = 20
+
+[[menus.main]]
+  name = "标签"
+  pageRef = "/tags"
+  weight = 30
+
+[[menus.main]]
+  name = "归档"
+  pageRef = "/archives"
+  weight = 40
+
+[[menus.main]]
+  name = "GitHub"
+  url = "https://github.com/chenghaoning51/OnMyWay"
+  weight = 50
+
+

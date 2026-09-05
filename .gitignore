@@ -27,6 +27,7 @@ docs/
 AGENTS.md
 CHECKLIST.md
 site/
+.hugo_build.lock
 image/
 *.bak
 _probe*

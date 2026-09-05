@@ -1,0 +1,30 @@
+# 站点级 i18n 覆写：主题只自带 zh（繁体）与 zh-tw，简体由本文件提供（项目目录优先于主题）
+- id: prev_page
+  translation: "上一页"
+
+- id: next_page
+  translation: "下一页"
+
+- id: read_time
+  translation: "{{ .Count }} 分钟"
+
+- id: words
+  translation: "{{ .Count }} 字"
+
+- id: toc
+  translation: "目录"
+
+- id: translations
+  translation: "翻译"
+
+- id: home
+  translation: "首页"
+
+- id: edit_post
+  translation: "编辑"
+
+- id: code_copy
+  translation: "复制"
+
+- id: code_copied
+  translation: "已复制！"
