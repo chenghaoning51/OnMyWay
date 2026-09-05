@@ -1,0 +1,11 @@
+# 阶段 2.5 证书续期：DNS-01 只依赖出网 + RAM AK，不受备案审核影响
+# certbot 自己判断剩余天数（< 30 天才真去签），天天跑也不额外花钱/不额外打 DNS
+[Unit]
+Description=blog certbot renew (DNS-01 aliyun)
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/certbot renew --quiet --no-random-sleep-on-renew
+MemoryMax=256M
+Nice=10

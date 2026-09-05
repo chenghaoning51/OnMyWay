@@ -1,0 +1,12 @@
+# 60 s 一次。AccuracySec=1s 必须显式写：systemd 默认 1 min 容差会把「每分钟」合并成不可控的时机
+[Unit]
+Description=blog 60s update poll (备案期主链路 / 平时兜底)
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=60s
+AccuracySec=1s
+Unit=blog-poll.service
+
+[Install]
+WantedBy=timers.target

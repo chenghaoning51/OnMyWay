@@ -1,0 +1,11 @@
+[Unit]
+Description=daily certbot renew for tuanzi-wow.cn
+
+[Timer]
+OnCalendar=*-*-* 04:17:00
+RandomizedDelaySec=3600
+Persistent=true
+Unit=blog-certbot-renew.service
+
+[Install]
+WantedBy=timers.target

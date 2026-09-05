@@ -1,0 +1,26 @@
+# 阶段 2.2 GitHub Webhook 接收器（标准库单文件，绑 127.0.0.1:9100）
+# 安装位置 /etc/systemd/system/，源文件在仓库里改，改完重跑 deploy/install-stage2.sh
+[Unit]
+Description=blog GitHub webhook receiver (127.0.0.1:9100)
+After=network-online.target
+Wants=network-online.target
+# 密钥文件还没生成时让它反复重启重试，补上文件即自愈；别停在 failed 态
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /srv/blog/bin/deploy-hook.py --host 127.0.0.1 --port 9100 --secret-file /etc/blog/webhook-secret --deploy /srv/blog/bin/deploy.sh
+Restart=always
+RestartSec=5
+Nice=5
+MemoryMax=64M
+TasksMax=32
+UMask=0022
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

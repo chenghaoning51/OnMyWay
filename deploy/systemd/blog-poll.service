@@ -1,0 +1,17 @@
+# 阶段 2.3 轮询入口：比对 origin/main 与已发布 sha，不同则走同一个 deploy.sh（同一入口 = 同一套原子切版逻辑）
+# 备案审核期（docs/plan.md §0.2 K3）域名入向被云平台 403、Webhook 不可达 —— 这条 timer 就是主链路
+[Unit]
+Description=blog poll origin/main and deploy if changed
+ConditionPathExists=/srv/blog/bin/deploy.sh
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/srv/blog/bin/deploy.sh --poll
+MemoryMax=320M
+TimeoutStartSec=300
+UMask=0022
+Nice=10
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
