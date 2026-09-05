@@ -52,8 +52,15 @@ printf '内存 %s ｜ 磁盘 %s ｜ 负载 %s\n' "$(free -m | awk '/^Mem:/{print
 mkdir -p "$BK" && chmod 700 "$BK"
 printf '备份目录=%s\n' "$BK"
 
-sec 'P1 同步仓库（blog 身份，ff-only）'
-sudo -u blog git -C "$REPO" pull --ff-only origin main > "$BK/pull.log" 2>&1; rc=$?
+sec 'P1 同步仓库（blog 身份 ff-only；GitHub 的 HTTP/2 在这台机上会报 curl 16，故强制 1.1 + 退避重试）'
+rc=1; tries=0
+for wait_s in 0 2 5 10; do
+  tries=$((tries + 1))
+  [ "$wait_s" -gt 0 ] && sleep "$wait_s"
+  if sudo -u blog git -C "$REPO" -c http.version=HTTP/1.1 pull --ff-only origin main > "$BK/pull.log" 2>&1; then rc=0; break; fi
+done
+ck 'git pull --ff-only' "$rc" "第 ${tries} 次尝试成功；HEAD=$(sudo -u blog git -C "$REPO" rev-parse --short HEAD 2>/dev/null) 日志尾=$(tail -c 200 "$BK/pull.log" | tr '\n' ' ')"
+if [ "$rc" != 0 ]; then echo '仓库没更新：后面装的就是旧文件，把上面日志尾回传定性' >&2; exit 3; fi
 ck 'git pull --ff-only' "$rc" "HEAD=$(sudo -u blog git -C "$REPO" rev-parse --short HEAD 2>/dev/null) 日志尾=$(tail -c 140 "$BK/pull.log" | tr '\n' ' ')"
 if [ "$rc" != 0 ]; then echo '仓库没更新：后面装的就是旧文件，先解决再重跑' >&2; exit 3; fi
 
