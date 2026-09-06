@@ -120,9 +120,19 @@ done
 systemctl start blog-health.service 2> /dev/null; sleep 1
 journalctl -u blog-health.service -n 6 --no-pager -o short-iso 2>/dev/null | sed 's/^/  /'
 ck 'blog-health.service 首跑' "$([ "$(systemctl show -p Result --value blog-health.service 2>/dev/null)" = success ] && echo 0 || echo 1)" "Result=$(systemctl show -p Result --value blog-health.service 2>/dev/null)"
-# 备份本轮真实跑一遍并查终态（D34：子进程的 [FAIL] 必须进顶层计数，不能只展示）
-systemctl restart blog-backup.service 2> /dev/null   # restart 阻塞到 oneshot 退出（push 含重试最坏 ~5 min）
-ck 'blog-backup.service 本轮备份' "$([ "$(systemctl show -p Result --value blog-backup.service 2>/dev/null)" = success ] && echo 0 || echo 1)" "Result=$(systemctl show -p Result --value blog-backup.service 2>/dev/null)（FAIL 时看上方 journalctl，多为 GitHub 直连间歇超时，重跑即可）"
+# 备份本轮真实跑一遍并查终态（D34：子进程的 [FAIL] 必须进顶层计数，不能只展示）。
+# 用 --no-block + 进度轮询：push 重试最坏 ~5 min，阻塞式 restart 会让 Workbench 像死机（首跑实证）；
+# systemd TimeoutStartSec=600 兜底，轮询上限 480s
+systemctl restart --no-block blog-backup.service 2> /dev/null
+ST=$(systemctl show -p ActiveState --value blog-backup.service 2>/dev/null)
+WAITED=0
+while [ "$ST" = activating ] && [ "$WAITED" -lt 480 ]; do
+  sleep 15; WAITED=$((WAITED + 15))
+  printf '  等待备份完成 %ds（push 重试最坏 ~5 min，GitHub 间歇不可达时自动重试 3 次）...\n' "$WAITED"
+  ST=$(systemctl show -p ActiveState --value blog-backup.service 2>/dev/null)
+done
+RES=$(systemctl show -p Result --value blog-backup.service 2>/dev/null)
+ck 'blog-backup.service 本轮备份' "$([ "$ST" = inactive ] && [ "$RES" = success ] && echo 0 || echo 1)" "ActiveState=$ST Result=$RES（FAIL 时看上方 journalctl，多为 GitHub 直连间歇超时，重跑即可）"
 sleep 1
 
 sec 'P5 端到端自检（巡检 + 备份真实各跑一轮）'
