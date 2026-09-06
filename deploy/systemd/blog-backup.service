@@ -1,0 +1,17 @@
+# 阶段 4.1 每日备份（03:30，由 blog-backup.timer 拉起）
+# 安装位置 /etc/systemd/system/，源文件在仓库里改，改完重跑 deploy/install-stage4.sh
+[Unit]
+Description=blog daily backup (bundle + etc tar + sqlite -> local 14d + private repo snapshot)
+ConditionPathExists=/srv/blog/bin/backup.sh
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/srv/blog/bin/backup.sh
+MemoryMax=200M
+TimeoutStartSec=600
+UMask=0022
+Nice=10
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectHome=read-only

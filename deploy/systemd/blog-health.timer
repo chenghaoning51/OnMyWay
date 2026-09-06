@@ -1,0 +1,12 @@
+# 每 5 min 一轮；AccuracySec 放宽到 15s（巡检不要求秒级准时，省唤醒）
+[Unit]
+Description=blog health check timer (every 5 min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=15s
+Unit=blog-health.service
+
+[Install]
+WantedBy=timers.target

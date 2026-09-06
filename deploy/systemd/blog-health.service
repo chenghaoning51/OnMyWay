@@ -1,0 +1,18 @@
+# 阶段 4.2 巡检（每 5 min，由 blog-health.timer 拉起）；连续 2 次失败才发信，逻辑在 health.py
+# 安装位置 /etc/systemd/system/，源文件在仓库里改，改完重跑 deploy/install-stage4.sh
+[Unit]
+Description=blog health check (site/api/disk/mem/cert/expiry -> blog-alert)
+ConditionPathExists=/srv/blog/bin/health.py
+ConditionPathExists=/usr/local/bin/blog-alert
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 /srv/blog/bin/health.py
+MemoryMax=64M
+TimeoutStartSec=120
+UMask=0022
+Nice=10
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectHome=read-only

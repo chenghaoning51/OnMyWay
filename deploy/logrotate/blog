@@ -1,0 +1,14 @@
+# /etc/logrotate.d/blog —— 阶段 4.4：/srv/blog/logs 下的自有日志（deploy.log 等）
+# nginx 的 /var/log/nginx/*.log 由系统包自带 /etc/logrotate.d/nginx 管理，此处不重复
+# copytruncate：deploy.sh 以追加方式长期写 deploy.log，不换句柄，切后截断即可
+/srv/blog/logs/*.log {
+    daily
+    rotate 14
+    maxsize 50M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    dateext
+}
