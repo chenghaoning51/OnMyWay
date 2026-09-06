@@ -90,8 +90,10 @@ ok '本地滚动清理' "删除 ${DELETED} 个 >${KEEP} 天的旧备份；现留
 # 5) force-push 快照到私有仓库（整目录 = 单提交快照，仓库体积恒定）
 [ -r "$ENV_FILE" ] && { set -a; . "$ENV_FILE"; set +a; }
 case "${BACKUP_REPO_URL:-}" in
-  https://*@github.com/*) : ;;
-  *) note '私有仓库未配置' "在 $ENV_FILE 填 BACKUP_REPO_URL（形如 https://<PAT>@github.com/<user>/blog-backup.git）后重跑；本次本地备份已完成且可用"; finish " local-only"; ;;
+  https://*:*@gitee.com/*|https://*:*@github.com/*) : ;;
+  *) note '备份远端未配置/格式不符' "在 $ENV_FILE 写**单行** BACKUP_REPO_URL（形如 https://<用户名>:<令牌>@gitee.com/<用户名>/blog-backup.git）后重跑；本次本地备份完成，但快照未推送，health 将判 backup FAIL"
+    date +%s > "$STATE/.backup-last-fail"
+    finish " local-only" ;;
 esac
 WORK=$(mktemp -d)
 if git init -q -b main "$WORK" \

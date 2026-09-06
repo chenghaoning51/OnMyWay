@@ -116,24 +116,24 @@ for t in blog-health.timer blog-backup.timer; do
   NEXT=$(systemctl list-timers --no-legend "$t" 2>/dev/null | awk '{print $2, $3}')
   [ -n "$NEXT" ]; ck "$t 已激活" "$?" "is-active=$(systemctl is-active "$t" 2>&1) 下次=$NEXT（OnUnitActiveSec 型首跑前可能显示 n/a，见下一条 service 首跑判据）"
 done
-# OnUnitActiveSec 型 timer 未首跑时 list-timers 的 NEXT 显示 n/a —— 主动跑一次 service 路径（ConditionPathExists+ExecStart 全链路）
-systemctl start blog-health.service 2> /dev/null; sleep 1
-journalctl -u blog-health.service -n 6 --no-pager -o short-iso 2>/dev/null | sed 's/^/  /'
-ck 'blog-health.service 首跑' "$([ "$(systemctl show -p Result --value blog-health.service 2>/dev/null)" = success ] && echo 0 || echo 1)" "Result=$(systemctl show -p Result --value blog-health.service 2>/dev/null)"
-# 备份本轮真实跑一遍并查终态（D34：子进程的 [FAIL] 必须进顶层计数，不能只展示）。
-# 用 --no-block + 进度轮询：push 重试最坏 ~5 min，阻塞式 restart 会让 Workbench 像死机（首跑实证）；
-# systemd TimeoutStartSec=600 兜底，轮询上限 480s
+# 备份本轮真实跑一遍并查终态（D34/D38：备份必须先跑——它写 .backup-last-ok，health 的 backup 维度依赖它；
+# 顺序颠倒了首轮必 FAIL 一次）。--no-block + 进度轮询：push 重试最坏 ~7 min，别让 Workbench 像死机；
+# systemd TimeoutStartSec=900 兜底，轮询上限 720s
 systemctl restart --no-block blog-backup.service 2> /dev/null
 ST=$(systemctl show -p ActiveState --value blog-backup.service 2>/dev/null)
 WAITED=0
 while [ "$ST" = activating ] && [ "$WAITED" -lt 720 ]; do
   sleep 15; WAITED=$((WAITED + 15))
-  printf '  等待备份完成 %ds（push 重试最坏 ~7 min，GitHub 间歇不可达时自动重试 5 次）...\n' "$WAITED"
+  printf '  等待备份完成 %ds（push 重试最坏 ~7 min，远端间歇不可达时自动重试 5 次）...\n' "$WAITED"
   ST=$(systemctl show -p ActiveState --value blog-backup.service 2>/dev/null)
 done
 RES=$(systemctl show -p Result --value blog-backup.service 2>/dev/null)
-ck 'blog-backup.service 本轮备份' "$([ "$ST" = inactive ] && [ "$RES" = success ] && echo 0 || echo 1)" "ActiveState=$ST Result=$RES（FAIL 时看上方 journalctl，多为 GitHub 直连间歇超时，重跑即可）"
+ck 'blog-backup.service 本轮备份' "$([ "$ST" = inactive ] && [ "$RES" = success ] && echo 0 || echo 1)" "ActiveState=$ST Result=$RES（FAIL 时看上方 journalctl，多为远端不可达，重跑即可）"
 sleep 1
+# 巡检首跑（在备份之后：7 维里 update/backup 依赖状态文件，D38）
+systemctl start blog-health.service 2> /dev/null; sleep 1
+journalctl -u blog-health.service -n 9 --no-pager -o short-iso 2>/dev/null | sed 's/^/  /'
+ck 'blog-health.service 首跑' "$([ "$(systemctl show -p Result --value blog-health.service 2>/dev/null)" = success ] && echo 0 || echo 1)" "Result=$(systemctl show -p Result --value blog-health.service 2>/dev/null)"
 
 sec 'P5 端到端自检（巡检 + 备份真实各跑一轮）'
 if /usr/bin/python3 "$BIN/health.py"; then HRC=0; else HRC=1; fi
