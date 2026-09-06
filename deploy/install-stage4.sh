@@ -126,9 +126,9 @@ ck 'blog-health.service 首跑' "$([ "$(systemctl show -p Result --value blog-he
 systemctl restart --no-block blog-backup.service 2> /dev/null
 ST=$(systemctl show -p ActiveState --value blog-backup.service 2>/dev/null)
 WAITED=0
-while [ "$ST" = activating ] && [ "$WAITED" -lt 480 ]; do
+while [ "$ST" = activating ] && [ "$WAITED" -lt 720 ]; do
   sleep 15; WAITED=$((WAITED + 15))
-  printf '  等待备份完成 %ds（push 重试最坏 ~5 min，GitHub 间歇不可达时自动重试 3 次）...\n' "$WAITED"
+  printf '  等待备份完成 %ds（push 重试最坏 ~7 min，GitHub 间歇不可达时自动重试 5 次）...\n' "$WAITED"
   ST=$(systemctl show -p ActiveState --value blog-backup.service 2>/dev/null)
 done
 RES=$(systemctl show -p Result --value blog-backup.service 2>/dev/null)
