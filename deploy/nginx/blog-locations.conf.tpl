@@ -44,15 +44,32 @@ location = /healthz-nginx {
     return 200 "ok\n";
 }
 
-# 阶段 3 启用：检索与统计（只绑 127.0.0.1:8000，永不直接对公网）
-# location /api/ {
-#     limit_req zone=blog_req burst=20 nodelay;
-#     proxy_pass http://127.0.0.1:8000;
-#     proxy_http_version 1.1;
-#     proxy_set_header Host $host;
-#     proxy_set_header X-Real-IP $remote_addr;
-#     proxy_set_header X-Forwarded-Proto $scheme;
-# }
+# 阶段 3 检索与统计：反代 127.0.0.1:8000（8000 只绑回环，永不直接对公网）
+# reindex 单列 exact location：IP 白名单（与 /_deploy 同一份 allow 列表）+ 应用层 X-Reindex-Token，IP+token 双限
+location = /api/reindex {
+    limit_req zone=deploy_req burst=5 nodelay;
+    include /etc/nginx/snippets/blog-deploy-allow.conf;
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_read_timeout 120s;
+    add_header Cache-Control "no-store" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Strict-Transport-Security $blog_hsts always;
+}
+
+# ^~：/api/ 前缀内不再落静态资源的正则 location；proxy_pass 不带 URI，原样透传查询串
+location ^~ /api/ {
+    limit_req zone=blog_req burst=20 nodelay;
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    add_header Cache-Control "no-store" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Strict-Transport-Security $blog_hsts always;
+}
 
 # 带扩展名的静态资源：Hugo --minify + fingerprint 后文件名含哈希，可放一年不可变
 location ~* \.(?:css|js|mjs|map|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|eot|mp3|bundle)$ {

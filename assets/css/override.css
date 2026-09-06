@@ -19,3 +19,18 @@ code { word-break: break-word; }
 
 /* 暗色下代码块与页面底色贴合（PaperMod 用 html[data-theme=dark]） */
 html[data-theme=dark] .highlight { border-color: rgb(49 54 61); }
+
+/* 阶段 3.6：页脚搜索框（layouts/partials/extend_footer.html 注入，全站可见） */
+.footer-search { margin: 1.4em auto 0; max-width: 420px; }
+.footer-search form { display: flex; gap: .5em; }
+.footer-search input[type=search] {
+  flex: 1; min-width: 0; padding: .45em .8em; font-size: .92em;
+  border: 1px solid var(--secondary); border-radius: 6px;
+  background: var(--code-bg); color: var(--primary);
+}
+.footer-search button {
+  padding: .45em 1em; font-size: .92em;
+  border: 1px solid var(--secondary); border-radius: 6px;
+  background: transparent; color: var(--secondary); cursor: pointer;
+}
+.footer-search button:hover { color: var(--primary); border-color: var(--primary); }

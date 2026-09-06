@@ -1,0 +1,24 @@
+{{- /* 阶段 3.6：页脚搜索框 + sendBeacon 埋点（全站、零外部依赖、不引第三方统计）。
+       埋点只发本站 /api/visit，失败静默，不影响阅读；本地 hugo server 下 404 同样静默。 */ -}}
+<div class="footer-search">
+  <form action="{{ "search/" | relLangURL }}" method="get" role="search">
+    <input type="search" name="q" placeholder="搜索笔记…" aria-label="站内搜索" maxlength="100">
+    <button type="submit">搜索</button>
+  </form>
+</div>
+<script>
+(function () {
+  try {
+    var k = 'tz-vid';
+    var v = localStorage.getItem(k);
+    if (!v) {
+      v = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem(k, v);
+    }
+    var d = JSON.stringify({ u: location.pathname, r: document.referrer || '', v: v });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/visit', new Blob([d], { type: 'text/plain' }));
+    }
+  } catch (e) { /* 埋点失败静默 */ }
+})();
+</script>

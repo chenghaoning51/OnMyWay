@@ -115,6 +115,11 @@ summaryLength = 70
   weight = 40
 
 [[menus.main]]
+  name = "搜索"
+  pageRef = "/search"
+  weight = 45
+
+[[menus.main]]
   name = "GitHub"
   url = "https://github.com/chenghaoning51/OnMyWay"
   weight = 50

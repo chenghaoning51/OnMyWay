@@ -1,0 +1,87 @@
+{{- /* 阶段 3.6：站内搜索页（站点级覆盖主题 fuse 搜索；数据来自本站 /api/search，零外部依赖）。
+       触发：content/search.md 的 layout=search。snippet 由服务端拼好（正文已转义），
+       title/tags 等站点元数据在前端二次转义。 */ -}}
+{{- define "main" }}
+
+<header class="page-header">
+    <h1>{{ .Title }}</h1>
+    {{- with .Description }}
+    <div class="post-description">{{ . }}</div>
+    {{- end }}
+</header>
+
+<div class="site-search">
+    <input id="site-q" type="search" placeholder="输入关键词，如：标准库 / 浮点 / 异常"
+           aria-label="搜索关键词" autocomplete="off" maxlength="100" autofocus>
+    <div id="site-results" aria-live="polite"></div>
+    <noscript><p class="sr-empty">搜索需要启用 JavaScript。</p></noscript>
+</div>
+
+<style>
+    .site-search { max-width: 720px; margin: 0 auto; }
+    .site-search input {
+        width: 100%; box-sizing: border-box; padding: .6em .9em; font-size: 1em;
+        border: 1px solid var(--secondary); border-radius: 8px;
+        background: var(--code-bg); color: var(--primary);
+    }
+    .site-search input:focus { outline: none; border-color: var(--primary); }
+    #site-results ul { list-style: none; margin: 0; padding: 0; }
+    #site-results li { margin: 1.2em 0; }
+    #site-results a { font-weight: 600; overflow-wrap: anywhere; }
+    #site-results .sr-path { color: var(--secondary); font-size: .85em; overflow-wrap: anywhere; }
+    #site-results p { margin: .25em 0 0; font-size: .92em; overflow-wrap: anywhere; }
+    #site-results .sr-meta { color: var(--secondary); font-size: .85em; margin-top: .2em; }
+    #site-results mark { background: rgba(255, 213, 0, .35); color: inherit; padding: 0 .1em; border-radius: 2px; }
+    html[data-theme=dark] #site-results mark { background: rgba(219, 164, 4, .35); }
+    .sr-empty { color: var(--secondary); }
+</style>
+
+<script>
+(function () {
+    var input = document.getElementById('site-q');
+    var box = document.getElementById('site-results');
+    var timer = null;
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+    function render(d) {
+        if (!d.hits || !d.hits.length) {
+            box.innerHTML = '<p class="sr-empty">没有找到与「' + esc(d.q) + '」相关的内容。</p>';
+            return;
+        }
+        var html = '<p class="sr-meta">' + d.total + ' 条结果 · ' + d.took_ms + ' ms</p><ul>';
+        d.hits.forEach(function (h) {
+            var url = esc(h.url) + (h.anchor ? '#' + encodeURIComponent(h.anchor) : '');
+            var head = h.anchor && h.heading ? esc(h.heading) + ' — ' + esc(h.title) : esc(h.title);
+            var cats = (h.categories || []).map(esc).join(' / ');
+            var tags = (h.tags || []).map(esc).join(' · ');
+            html += '<li><a href="' + url + '">' + head + '</a>'
+                + '<div class="sr-path">' + cats + (cats ? ' · ' : '') + esc(h.url) + '</div>'
+                + '<p>' + (h.snippet || '') + '</p>'
+                + (tags ? '<div class="sr-meta"># ' + tags + '</div>' : '')
+                + '</li>';
+        });
+        box.innerHTML = html + '</ul>';
+    }
+    function run(v) {
+        v = v.trim();
+        if (!v) { box.innerHTML = ''; return; }
+        fetch('/api/search?q=' + encodeURIComponent(v) + '&limit=10')
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+            .then(render)
+            .catch(function () {
+                box.innerHTML = '<p class="sr-empty">搜索服务暂不可用，稍后再试。</p>';
+            });
+    }
+    input.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () { run(input.value); }, 250);
+    });
+    var q0 = new URLSearchParams(location.search).get('q') || '';
+    if (q0) { input.value = q0; run(q0); }
+})();
+</script>
+
+{{- end }}{{/* end main */}}

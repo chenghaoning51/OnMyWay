@@ -1,0 +1,31 @@
+# 阶段 3.3/3.4 检索与统计服务（FastAPI + uvicorn，只绑 127.0.0.1:8000，永不直对公网）
+# 安装位置 /etc/systemd/system/，源文件在仓库里改，改完重跑 deploy/install-stage3.sh
+# RuntimeMaxSec=86400：每 24h 自愈式重启，防内存漂移（Restart=always 接住，用户无感）
+[Unit]
+Description=blog search & stats API (127.0.0.1:8000, FastAPI + SQLite FTS5)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=blog
+Group=blog
+WorkingDirectory=/srv/blog/src
+ExecStart=/opt/blogapi/bin/python -m uvicorn blogapi:app --host 127.0.0.1 --port 8000 --workers 1 --app-dir /srv/blog/src/scripts
+Environment=PYTHONUNBUFFERED=1
+# 前导 -：文件缺失不拦启动；token 缺失时 /api/reindex 按设计一律 401（fail-closed）
+EnvironmentFile=-/etc/blog/api.env
+Restart=always
+RestartSec=5
+RuntimeMaxSec=86400
+Nice=5
+MemoryMax=400M
+TasksMax=64
+UMask=0022
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

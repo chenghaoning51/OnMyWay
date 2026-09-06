@@ -89,6 +89,14 @@ if [ "$MODE" = rollback ]; then
   ln -sfn "$REL/$PREV" "$BASE/.current.new" && mv -Tf "$BASE/.current.new" "$CURRENT" || { alert '回滚切链失败'; exit 2; }
   echo '' > "$STATE/deployed_sha"          # 清空 sha，让下一轮 poll 重新拉取真实内容
   reload_nginx
+  # 回滚后线上内容变了：索引全量重建（解析 current 实际指向），防止检索结果比线上新
+  if curl -fsS -m 3 http://127.0.0.1:8000/healthz > /dev/null 2>&1; then
+    if curl -fsS -m 60 -X POST -H "X-Reindex-Token: $REINDEX_TOKEN" -H 'Content-Type: application/json' --data '{"full":true}' "$REINDEX_URL" > /dev/null 2>&1; then
+      log '回滚后索引已按旧版全量重建'
+    else
+      alert '回滚后 /api/reindex 全量重建失败：检索索引与线上内容不一致'
+    fi
+  fi
   log "已回滚 $(basename "$CUR") -> $PREV（deployed_sha 已清空，等待下次发布）"
   exit 0
 fi
@@ -152,9 +160,20 @@ reload_nginx
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -m 8 -H "Host: $SITE_HOST" http://127.0.0.1/ || echo 000)
 [ "$CODE" = 200 ] || alert "本机 80 取 / 返回 $CODE（期望 200）"
 
-# 7) 检索增量（阶段 3 未上线时静默跳过）
+# 6.5) 阶段 3 API 代码随仓库更新时重启服务（重启后由第 7 步的 reindex 请求把新代码跑起来）
+if [ -n "$DEPLOYED" ]; then
+  API_CHG=$(as_blog git -C "$SRC" diff --name-only "$DEPLOYED" HEAD -- scripts/blogapi.py scripts/reindex.py 2>/dev/null | wc -l)
+else
+  API_CHG=1
+fi
+if [ "$API_CHG" -gt 0 ] && systemctl is-active --quiet blog-api 2>/dev/null; then
+  systemctl restart blog-api && log 'blog-api 已重启（API 代码更新）'
+fi
+
+# 7) 检索增量（阶段 3）：把上一版/这一版 release 目录名告诉索引器，只重解析有差异的页面
 if curl -fsS -m 3 http://127.0.0.1:8000/healthz > /dev/null 2>&1; then
-  if curl -fsS -m 60 -X POST -H "X-Reindex-Token: $REINDEX_TOKEN" "$REINDEX_URL" > /dev/null 2>&1; then
+  REINDEX_BODY=$(printf '{"prev":"%s","cur":"%s"}' "$(basename "${PREV:-}")" "$(basename "$OUT")")
+  if curl -fsS -m 60 -X POST -H "X-Reindex-Token: $REINDEX_TOKEN" -H 'Content-Type: application/json' --data "$REINDEX_BODY" "$REINDEX_URL" > /dev/null 2>&1; then
     log 'reindex ok'
   else
     alert 'POST /api/reindex 失败：检索索引落后于内容'
