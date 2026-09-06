@@ -21,11 +21,16 @@ FAILED=0
 ok()   { printf '[OK]   %s ｜ %s\n' "$1" "${2:-}"; }
 fail() { printf '[FAIL] %s ｜ %s\n' "$1" "${2:-}"; FAILED=$((FAILED+1)); }
 note() { printf '[NOTE] %s ｜ %s\n' "$1" "${2:-}"; }
+# 结果只落状态文件（health.py 巡检按「备份新鲜度」裁决告警，D37 单一出口），本脚本不发邮件
 finish() {
-  logger -t blog-backup "rc=$FAILED$1 ts=$TS" 2>/dev/null
-  if [ "$FAILED" -gt 0 ] && [ -x /usr/local/bin/blog-alert ]; then
-    /usr/local/bin/blog-alert "每日备份有 $FAILED 项失败（详见 journalctl -u blog-backup）" >/dev/null 2>&1
+  mkdir -p "$STATE"
+  if [ "$FAILED" = 0 ]; then
+    date +%s > "$STATE/.backup-last-ok"
+    rm -f "$STATE/.backup-last-fail"
+  else
+    date +%s > "$STATE/.backup-last-fail"
   fi
+  logger -t blog-backup "rc=$FAILED$1 ts=$TS" 2>/dev/null
   exit $(( FAILED > 0 ? 1 : 0 ))
 }
 [ "$(id -u)" = 0 ] || { echo '须以 root 运行' >&2; exit 5; }

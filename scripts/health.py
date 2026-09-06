@@ -26,6 +26,8 @@ DOMAIN_EXPIRE = date(2027, 9, 4)   # plan §0.2 K12：两个到期日写死进�
 ECS_EXPIRE = date(2028, 1, 13)
 FAILS_BEFORE_ALERT = 2
 DISK_MAX, MEM_MIN, CERT_DAYS, EXPIRE_DAYS = 0.85, 0.10, 30, 15
+POLL_STALL_MAX = 15 * 60      # 更新链路停摆容忍窗：deploy.sh 写状态，此处按时间裁决（D37）
+BACKUP_MAX_AGE = 26 * 3600    # 备份新鲜度：每日 03:30 一轮，超 26h 判陈旧
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))   # 本机探测不吃任何代理
 
 
@@ -85,8 +87,46 @@ def check_expiry():
     return ok, '域名剩 %d 天 / ECS 剩 %d 天（阈值 ≥%d）' % (d_days, e_days, EXPIRE_DAYS)
 
 
+def _read_epoch(path):
+    try:
+        with open(path) as f:
+            return float(f.read().strip())
+    except Exception:
+        return 0.0
+
+
+def check_update():
+    """更新链路停摆：deploy.sh --poll 失败时写 .poll-fails/.poll-fail-since（D37）。
+    只按「首次失败距今时长」裁决——计数在边缘抖动下无意义，时间窗才代表真停摆。"""
+    fails = int(_read_epoch('/srv/blog/state/.poll-fails') or 0)
+    if fails <= 0:
+        return True, '更新链路正常'
+    stall = time.time() - _read_epoch('/srv/blog/state/.poll-fail-since')
+    if stall < POLL_STALL_MAX:
+        return True, '累计失败 %d 次（停摆 %d 分钟，容忍窗 <%d 分钟）' % (
+            fails, stall // 60, POLL_STALL_MAX // 60)
+    return False, '更新链路停摆 %d 分钟（连续失败 %d 次，阈值 <%d 分钟）' % (
+        stall // 60, fails, POLL_STALL_MAX // 60)
+
+
+def check_backup():
+    """备份新鲜度：backup.sh 成功写 .backup-last-ok、失败写 .backup-last-fail。
+    失败且未成功 → 即时判 FAIL（不必等 26h）；超 26h 无成功 → FAIL（陈旧）。"""
+    ok_t = _read_epoch('/srv/blog/state/.backup-last-ok')
+    fail_t = _read_epoch('/srv/blog/state/.backup-last-fail')
+    if ok_t == 0:
+        return False, '从未记录过成功备份'
+    age_h = (time.time() - ok_t) / 3600
+    if fail_t > ok_t:
+        return False, '最近一次备份失败于 %.1f 小时前（成功是 %.1f 小时前，阈值 <%.0fh）' % (
+            (time.time() - fail_t) / 3600, age_h, BACKUP_MAX_AGE / 3600)
+    ok = age_h <= BACKUP_MAX_AGE / 3600
+    return ok, '最近成功备份 %.1f 小时前（阈值 <%.0fh）' % (age_h, BACKUP_MAX_AGE / 3600)
+
+
 CHECKS = [('site', check_site), ('disk', check_disk), ('mem', check_mem),
-          ('cert', check_cert), ('expiry', check_expiry)]
+          ('cert', check_cert), ('expiry', check_expiry),
+          ('update', check_update), ('backup', check_backup)]
 
 
 def load_state():

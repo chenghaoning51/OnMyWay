@@ -107,35 +107,20 @@ T0=$(date +%s)
 DEPLOYED=$(cat "$STATE/deployed_sha" 2>/dev/null || echo '')
 
 # 1) 轻量探一次远端 sha（一次 HTTPS 请求，作为 --poll 的判据）
+# 失败不直接告警（D37 告警收敛）：只写状态文件（计数 + 首次失败时间戳），
+# 「更新链路停摆」的告警由 health.py 巡检统一裁决（单一告警出口）
 REMOTE=$(as_blog timeout -k 5 "$GIT_NET_TIMEOUT" git "${GIT_OPTS[@]}" -C "$SRC" ls-remote "$PULL_HOST" "heads/$PULL_REF" 2> "$STATE/.lsremote.err" | awk '{print $1}')
 if [ -z "$REMOTE" ]; then
-  # GitHub 间歇不可达是已知常态（deploy.env 注释）。--poll 每 60s 触发，失败告警必须去抖（D35）；
-  # 且边缘抖动下「偶尔成功一次」不清零计数、不发恢复（D36）：连续失败 ≥10 次（~10 分钟）才告警一封
   if [ "$MODE" = poll ]; then
+    [ -f "$STATE/.poll-fail-since" ] || date +%s > "$STATE/.poll-fail-since"
     FAILS=$(( $(cat "$STATE/.poll-fails" 2>/dev/null || echo 0) + 1 ))
     echo "$FAILS" > "$STATE/.poll-fails"
-    rm -f "$STATE/.poll-ok"
-    if [ "$FAILS" -ge 10 ] && [ ! -f "$STATE/.poll-alerted" ]; then
-      touch "$STATE/.poll-alerted"
-      alert "git ls-remote 连续 ${FAILS} 次失败（轮询停摆 ~${FAILS} 分钟），站点自动更新停摆；稳定恢复后另有通知"
-    fi
     exit 3
   fi
   alert "git ls-remote 失败（出网或权限），本次不动线上：$(tail -c 200 "$STATE/.lsremote.err" | tr -d '\r')"
   exit 3
 fi
-# 成功：曾告警过则需连续 3 次成功才算稳定恢复（单次抖动不重置失败计数、不发通知）
-if [ -f "$STATE/.poll-alerted" ]; then
-  OKS=$(( $(cat "$STATE/.poll-ok" 2>/dev/null || echo 0) + 1 ))
-  if [ "$OKS" -ge 3 ]; then
-    rm -f "$STATE/.poll-alerted" "$STATE/.poll-fails" "$STATE/.poll-ok"
-    alert "git ls-remote 已恢复（连续 3 次成功），轮询继续（停摆期间的提交已补上）"
-  else
-    echo "$OKS" > "$STATE/.poll-ok"
-  fi
-else
-  rm -f "$STATE/.poll-fails" "$STATE/.poll-ok"
-fi
+rm -f "$STATE/.poll-fails" "$STATE/.poll-fail-since"
 printf '%s remote=%s deployed=%s\n' "$(NOW)" "${REMOTE:0:7}" "${DEPLOYED:0:7}" > "$STATE/last-poll"
 if [ "$REMOTE" = "$DEPLOYED" ]; then
   if [ "$MODE" = force ]; then log '--force：sha 未变仍重新发布'; else
