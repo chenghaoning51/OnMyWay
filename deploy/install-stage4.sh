@@ -143,10 +143,9 @@ journalctl -u blog-backup.service -n 12 --no-pager -o short-iso 2>/dev/null | se
 if [ "$NEED_BACKUP" = 0 ]; then
   note '备份私有仓库' 'URL 未配置，本轮仅本地备份；填好 backup-git.env 后重跑本脚本以验证 push'
 fi
-printf '\n下一步（人做的）：\n'
-printf '  1) QQ 邮箱授权码填入 %s/blog-alert.env（四行全填），然后：\n     bash %s/deploy/install-stage4.sh --test-alert\n     收到邮件即 4.3 验收通过\n' "$ETC" "$REPO"
-printf '  2) GitHub 建私有空仓库 blog-backup，造 fine-grained PAT（只授该仓库 Contents: Read and write），\n     URL 填入 %s/backup-git.env，重跑本脚本——判据看「私有仓库快照 push 成功」\n' "$ETC"
-printf '  3) 告警验收（4.2）：systemctl stop blog-api → 等 10~15 min 收到「site 连续 2 次失败」邮件 → systemctl start blog-api →\n     再等 5 min 收到「已恢复」邮件\n'
-printf '  4) 择期按 docs/runbook.md 做一次整站重建演练（4.5 验收）\n'
+printf '\n下一步（人做的，按需）：\n'
+printf '  1) 重建/换机时：Gitee 双仓库（onmyway 公开=拉取源 / blog-backup 私有=备份快照），\n     按 runbook §7.2 重配 remote 与 %s/backup-git.env；通道与告警体系说明见 runbook §7\n' "$ETC"
+printf '  2) 择期按 docs/runbook.md 做一次整站重建演练（4.5 验收）\n'
+printf '  3) 告警自检：bash %s/deploy/install-stage4.sh --test-alert（发一封测试邮件验证 SMTP 链路）\n' "$REPO"
 printf '\nSTAGE4-DONE pass=%s fail=%s note=%s\n' "$PASS" "$FAIL" "$NOTE"
 exit 0

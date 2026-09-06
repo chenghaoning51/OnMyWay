@@ -91,7 +91,7 @@ ok '本地滚动清理' "删除 ${DELETED} 个 >${KEEP} 天的旧备份；现留
 [ -r "$ENV_FILE" ] && { set -a; . "$ENV_FILE"; set +a; }
 case "${BACKUP_REPO_URL:-}" in
   https://*:*@gitee.com/*|https://*:*@github.com/*) : ;;
-  *) note '备份远端未配置/格式不符' "在 $ENV_FILE 写**单行** BACKUP_REPO_URL（形如 https://<用户名>:<令牌>@gitee.com/<用户名>/blog-backup.git）后重跑；本次本地备份完成，但快照未推送，health 将判 backup FAIL"
+  *) note '备份远端未配置/格式不符' "在 $ENV_FILE 写**单行** BACKUP_REPO_URL（形如 https://<用户名>:<令牌>@gitee.com/<用户名>/blog-backup.git，见 runbook §7.2）后重跑；本次本地备份完成，但快照未推送，health 将判 backup FAIL"
     date +%s > "$STATE/.backup-last-fail"
     finish " local-only" ;;
 esac
