@@ -120,8 +120,10 @@ done
 systemctl start blog-health.service 2> /dev/null; sleep 1
 journalctl -u blog-health.service -n 6 --no-pager -o short-iso 2>/dev/null | sed 's/^/  /'
 ck 'blog-health.service 首跑' "$([ "$(systemctl show -p Result --value blog-health.service 2>/dev/null)" = success ] && echo 0 || echo 1)" "Result=$(systemctl show -p Result --value blog-health.service 2>/dev/null)"
-systemctl restart blog-backup.service 2> /dev/null   # 若首次安装，让备份立即跑一轮（幂等：重跑会再备一份，无害）
-sleep 2
+# 备份本轮真实跑一遍并查终态（D34：子进程的 [FAIL] 必须进顶层计数，不能只展示）
+systemctl restart blog-backup.service 2> /dev/null   # restart 阻塞到 oneshot 退出（push 含重试最坏 ~5 min）
+ck 'blog-backup.service 本轮备份' "$([ "$(systemctl show -p Result --value blog-backup.service 2>/dev/null)" = success ] && echo 0 || echo 1)" "Result=$(systemctl show -p Result --value blog-backup.service 2>/dev/null)（FAIL 时看上方 journalctl，多为 GitHub 直连间歇超时，重跑即可）"
+sleep 1
 
 sec 'P5 端到端自检（巡检 + 备份真实各跑一轮）'
 if /usr/bin/python3 "$BIN/health.py"; then HRC=0; else HRC=1; fi

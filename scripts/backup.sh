@@ -92,11 +92,23 @@ WORK=$(mktemp -d)
 if git init -q -b main "$WORK" \
    && find "$BAK" -maxdepth 1 -type f -exec cp -p {} "$WORK/" \; \
    && git -C "$WORK" add -A \
-   && git -C "$WORK" -c user.name=blog-backup -c user.email=blog-backup@localhost commit -qm "backup $TS" \
-   && timeout 180 git -C "$WORK" push --force "$BACKUP_REPO_URL" main:main > /tmp/backup-push.log 2>&1; then
-  ok '私有仓库快照' "push 成功（快照含 $(ls -1 "$WORK" | grep -vc '^\.git') 个文件）"
+   && git -C "$WORK" -c user.name=blog-backup -c user.email=blog-backup@localhost commit -qm "backup $TS"; then
+  # 到 GitHub:443 间歇不可达（同 deploy.sh 的已知症状：connect 130s 超时等），复用其对策：HTTP/1.1 + 退避重试
+  PUSH_OK=0; TRIES=0
+  for wait_s in 0 5 15; do
+    TRIES=$((TRIES + 1))
+    [ "$wait_s" -gt 0 ] && sleep "$wait_s"
+    if timeout 90 git -C "$WORK" -c http.version=HTTP/1.1 push --force "$BACKUP_REPO_URL" main:main > /tmp/backup-push.log 2>&1; then
+      PUSH_OK=1; break
+    fi
+  done
+  if [ "$PUSH_OK" = 1 ]; then
+    ok '私有仓库快照' "push 成功（第 ${TRIES} 次尝试｜快照含 $(ls -1 "$WORK" | grep -vc '^\.git') 个文件）"
+  else
+    fail '私有仓库快照' "3 次重试后仍失败：$(tail -c 160 /tmp/backup-push.log | tr '\r' ' ' | tr '\n' ' ')（本地 14 天滚动备份不受影响）"
+  fi
 else
-  fail '私有仓库快照' "$(tail -c 200 /tmp/backup-push.log | tr '\r' ' ' | tr '\n' ' ')（本地 14 天滚动备份不受影响）"
+  fail '私有仓库快照' "git init/commit 阶段失败：$(tail -c 160 /tmp/backup-push.log 2>/dev/null | tr '\r' ' ' | tr '\n' ' ')"
 fi
 rm -rf "$WORK"
 finish ""
