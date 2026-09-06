@@ -13,6 +13,8 @@ param(
   [string]$SlugPrefix = "sla-probe"
 )
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8   # curl 输出是 UTF-8：PS 5.1 默认按 ANSI 解码，中文页面的 ASCII 标记会被跨字节吞掉造成假阴性（D40）
+$OutputEncoding = [Text.Encoding]::UTF8
 $repo = Split-Path -Parent $PSScriptRoot       # 仓库根（脚本在 scripts/ 下）
 Push-Location $repo
 $results = @()
@@ -47,7 +49,8 @@ draft = false
     if ($LASTEXITCODE -ne 0) { throw "git push 失败（轮 $r），中止本轮" }
     Write-Host ("[轮 $r] 已 push（marker=$marker），开始轮询 {0}/{1}/ ..." -f $BaseUrl.TrimEnd('/'), $slug)
 
-    $url = "{0}/{1}/" -f $BaseUrl.TrimEnd('/'), $slug
+    # 探针页在 content/python/ 下 → 真实 URL 含分区前缀 /python/<slug>/（D41：探测 URL 必须与 Hugo 实际输出一致，别凭空拼根路径）
+    $url = "{0}/python/{1}/" -f $BaseUrl.TrimEnd('/'), $slug
     $curlArgs = @('-s', '--noproxy', '*', '-m', '8', '-o', 'NUL', '-w', '%{http_code}')
     if ($HostHeader) { $curlArgs += @('-H', "Host: $HostHeader") }
     $curlArgs += $url
