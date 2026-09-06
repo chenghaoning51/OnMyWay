@@ -76,7 +76,12 @@ ck 'health.py / backup.sh → /srv/blog/bin' "$([ -x "$BIN/health.py" ] && [ -x 
 install -m 0644 -o root -g root "$REPO/deploy/logrotate/blog" /etc/logrotate.d/blog
 ck 'logrotate 配置' "$([ -f /etc/logrotate.d/blog ] && echo 0 || echo 1)" '/srv/blog/logs/*.log 按天 14 份 copytruncate'
 logrotate -d /etc/logrotate.d/blog > "$BK/lr-dry.log" 2>&1
-grep -qiE '^error' "$BK/lr-dry.log"; ck 'logrotate 语法（dry-run）' "$?" "错误行数=$(grep -ciE '^error' "$BK/lr-dry.log")"
+# D33：grep -q 找到错误时 rc=0、没有时 rc=1——判据必须正向断言「无错误」，不能把 rc 直接喂给 ck
+if grep -qiE '^error' "$BK/lr-dry.log"; then
+  ck 'logrotate 语法（dry-run）' 1 "$(grep -iE '^error' "$BK/lr-dry.log" | head -2 | tr '\n' ' ')"
+else
+  ck 'logrotate 语法（dry-run）' 0 "错误行数=$(grep -ciE '^error' "$BK/lr-dry.log")"
+fi
 if [ -f /etc/logrotate.d/nginx ]; then
   note 'nginx 日志轮转' "系统包自带（$(grep -m1 'rotate ' /etc/logrotate.d/nginx | tr -s ' ')），/var/log/nginx/*.log 已被覆盖，不重复配"
 else
@@ -109,8 +114,12 @@ systemctl enable --now blog-health.timer blog-backup.timer > "$BK/enable.log" 2>
 ck 'enable --now health+backup timers' "$?" "$(tr '\n' ' ' < "$BK/enable.log" | head -c 120)"
 for t in blog-health.timer blog-backup.timer; do
   NEXT=$(systemctl list-timers --no-legend "$t" 2>/dev/null | awk '{print $2, $3}')
-  [ -n "$NEXT" ]; ck "$t 已激活" "$?" "is-active=$(systemctl is-active "$t" 2>&1) 下次=$NEXT（为空=没跑起来）"
+  [ -n "$NEXT" ]; ck "$t 已激活" "$?" "is-active=$(systemctl is-active "$t" 2>&1) 下次=$NEXT（OnUnitActiveSec 型首跑前可能显示 n/a，见下一条 service 首跑判据）"
 done
+# OnUnitActiveSec 型 timer 未首跑时 list-timers 的 NEXT 显示 n/a —— 主动跑一次 service 路径（ConditionPathExists+ExecStart 全链路）
+systemctl start blog-health.service 2> /dev/null; sleep 1
+journalctl -u blog-health.service -n 6 --no-pager -o short-iso 2>/dev/null | sed 's/^/  /'
+ck 'blog-health.service 首跑' "$([ "$(systemctl show -p Result --value blog-health.service 2>/dev/null)" = success ] && echo 0 || echo 1)" "Result=$(systemctl show -p Result --value blog-health.service 2>/dev/null)"
 systemctl restart blog-backup.service 2> /dev/null   # 若首次安装，让备份立即跑一轮（幂等：重跑会再备一份，无害）
 sleep 2
 
