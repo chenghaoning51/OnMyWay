@@ -130,9 +130,16 @@ for ip in $DEPLOY_ALLOW; do printf 'allow %s;\n' "$ip" >> /etc/nginx/snippets/bl
 printf 'deny all;\n' >> /etc/nginx/snippets/blog-deploy-allow.conf
 chmod 0644 /etc/nginx/snippets/blog-deploy-allow.conf
 cp -f /etc/nginx/snippets/blog-locations.conf "$BK/blog-locations.conf.bak" 2>/dev/null
+CHANGED=1
 if render "$REPO/deploy/nginx/blog-locations.conf.tpl" > /etc/nginx/snippets/blog-locations.conf.tmp; then
-  mv -Tf /etc/nginx/snippets/blog-locations.conf.tmp /etc/nginx/snippets/blog-locations.conf
-  ck '渲染 locations（启用 /api/）' 0 "api 块数=$(grep -c 'location .*api' /etc/nginx/snippets/blog-locations.conf)"
+  if cmp -s /etc/nginx/snippets/blog-locations.conf /etc/nginx/snippets/blog-locations.conf.tmp; then
+    rm -f /etc/nginx/snippets/blog-locations.conf.tmp
+    CHANGED=0
+    note 'locations 与现网一致（幂等）' '不写入、不重启 nginx'
+  else
+    mv -Tf /etc/nginx/snippets/blog-locations.conf.tmp /etc/nginx/snippets/blog-locations.conf
+    ck '渲染 locations（有变化，已写入）' 0 "api 块数=$(grep -c 'location .*api' /etc/nginx/snippets/blog-locations.conf)"
+  fi
 else
   ck '渲染 locations' 1 'sed 失败'; exit 6
 fi
@@ -145,12 +152,22 @@ if [ "$?" != 0 ]; then
   note '回滚' 'locations 已还原安装前内容，线上仍按旧规则服务；把上面 nginx -t 报错原样回传'
   exit 6
 fi
-systemctl reload nginx; ck 'nginx -t + reload' "$?" "reload rc=$?"
+# K8/D32：reload 后旧 worker 仍持旧配置，切流瞬间的请求会被旧配置吞成 404
+# （首跑实证：P7 第一枪 /api/search 撞上优雅退出中的旧 worker -> 旧配置无 /api/ -> 404）
+# 故配置真有变化就 restart（新配置全量接管后才开始自检）；无变化则不动 nginx
+if [ "$CHANGED" = 1 ]; then
+  systemctl restart nginx; ck 'nginx -t + restart（配置有变更）' "$?" "restart rc=$?"
+else
+  ck 'nginx -t（配置无变更，不重启）' 0 "nginx 已按现网配置运行"
+fi
+sleep 1
 C=$(code -H "Host: $SITE_DOMAIN" http://127.0.0.1/)
-ck '静态页仍 200（locations 改动未伤及页面）' "$([ "$C" = 200 ] && echo 0 || echo 1)" "code=$C"
+ck '静态页仍 200' "$([ "$C" = 200 ] && echo 0 || echo 1)" "code=$C"
 
 sec 'P7 端到端自检（回环 + Host 头；域名公网维度仍等 0.11 备案）'
 H="Host: $SITE_DOMAIN"
+C=$(code -H "$H" http://127.0.0.1/search/)
+ck 'GET /search/ 搜索页 200（timer 已自动发布）' "$([ "$C" = 200 ] && echo 0 || echo 1)" "code=$C"
 for w in 标准库 浮点 异常; do
   R=$(curl -fsS --noproxy '*' -m 5 -G -H "$H" --data-urlencode "q=$w" http://127.0.0.1/api/search)
   TOTAL=$(printf '%s' "$R" | jget "d.get('total',0)")
@@ -185,7 +202,7 @@ awk -v p="$P95" 'BEGIN{exit !(p<20)}'; ck '搜索 p95 < 20 ms（经 nginx，30 �
 
 sec 'P8 收尾实况'
 RSS=$(ps -o rss= -p "$(systemctl show -p MainPID --value blog-api)" 2>/dev/null | awk '{print int($1/1024)}')
-note "blog-api RSS=${RSS:-?}MiB" "稳态判据 ≤200MiB（jieba 词典约占 60MiB，刚启动属正常）"
+note "blog-api RSS=${RSS:-?}MiB" "稳态判据 ≤200MiB（含 jieba 词典约 60MiB）"
 printf '内存：'; free -m | awk '/^Mem:/{print "used "$3"M avail "$7"M"} /^Swap:/{print "｜ swap used "$3"M"}'
 printf '监听：%s\n' "$(ss -ltn 2>/dev/null | awk 'NR>1{print $4}' | sort -u | tr '\n' ' ')"
 printf 'journalctl 尾部：\n'
