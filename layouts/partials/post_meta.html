@@ -1,0 +1,27 @@
+{{- /* 站点级 post_meta（覆盖 themes/PaperMod/layouts/_partials/post_meta.html）。
+       字段与取值和主题完全一致（日期/阅读时长/字数/作者，随 config 开关增减），
+       仅加 tz-meta 胶囊类名供 override.css 上色；文章页与列表卡片共用。
+       不用装饰 emoji（6.1 复审意见），胶囊感由描边与底色承担。 */ -}}
+{{- $scratch := newScratch }}
+
+{{- if not .Date.IsZero -}}
+    {{- $scratch.Add "meta" (slice (printf "<span class=\"tz-meta\" title='%s'>%s</span>" (.Date) (.Date | time.Format (default ":date_long" site.Params.DateFormat)))) }}
+{{- end }}
+
+{{- if (.Param "ShowReadingTime") -}}
+    {{- $scratch.Add "meta" (slice (printf "<span class=\"tz-meta\">%s</span>" (i18n "read_time" .ReadingTime | default (printf "%d min" .ReadingTime)))) }}
+{{- end }}
+
+{{- if (.Param "ShowWordCount") -}}
+    {{- $scratch.Add "meta" (slice (printf "<span class=\"tz-meta\">%s</span>" (i18n "words" .WordCount | default (printf "%d words" .WordCount)))) }}
+{{- end }}
+
+{{- if not (.Param "hideAuthor") -}}
+    {{- with (partial "author.html" .) }}
+        {{- $scratch.Add "meta" (slice (printf "<span class=\"tz-meta\">%s</span>" .)) }}
+    {{- end }}
+{{- end }}
+
+{{- with ($scratch.Get "meta") }}
+    {{- delimit . "" | safeHTML -}}
+{{- end -}}

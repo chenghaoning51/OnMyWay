@@ -1,0 +1,62 @@
+{{- /* 站点级首页（覆盖 themes/PaperMod/layouts/_partials/index_profile.html，profileMode 分支）。
+       「活泼明媚」改版：英雄名片（彩虹环头像 + 渐变标题 + 统计胶囊 + 按钮组）
+       + 最新笔记卡片 + 分类导航卡片。纯静态渲染：无 JS、无外链、不新增图片、不用装饰 emoji，
+       活泼感由 6 色轮换与渐变承担。样式集中在 assets/css/override.css 阶段 6.1 段；
+       头像沿用 profileMode.imageUrl，并补 fetchpriority=high（1.8d ② 的 LCP 优化）。 */ -}}
+{{- $pm := site.Params.profileMode -}}
+
+<div class="tz-home">
+  <section class="tz-hero">
+    <div class="tz-avatar">
+      <img src="{{ $pm.imageUrl | absURL }}" alt="{{ $pm.imageTitle | default "avatar" }}"
+           width="{{ $pm.imageWidth | default 128 }}" height="{{ $pm.imageHeight | default 128 }}"
+           fetchpriority="high" decoding="async">
+    </div>
+    <h1 class="tz-hero-title">{{ $pm.title | default site.Title }}</h1>
+    <p class="tz-hero-sub">{{ $pm.subtitle }}</p>
+
+    <nav class="tz-stats" aria-label="站点统计">
+      <a class="tz-stat" href="{{ "archives/" | relLangURL }}"><strong>{{ len site.RegularPages }}</strong><span>笔记</span></a>
+      <a class="tz-stat" href="{{ "categories/" | relLangURL }}"><strong>{{ len site.Taxonomies.categories }}</strong><span>分类</span></a>
+      <a class="tz-stat" href="{{ "tags/" | relLangURL }}"><strong>{{ len site.Taxonomies.tags }}</strong><span>标签</span></a>
+    </nav>
+
+    <div class="tz-cta">
+      {{- range $i, $b := $pm.buttons }}
+      <a class="tz-btn{{ if eq $i 0 }} tz-btn-main{{ end }}" href="{{ trim $b.url " " }}">{{ $b.name }}</a>
+      {{- end }}
+    </div>
+  </section>
+
+  <section class="tz-section">
+    <h2 class="tz-h2">最新笔记<a class="tz-more" href="{{ "archives/" | relLangURL }}">全部 →</a></h2>
+    <div class="tz-grid">
+      {{- range first 6 (site.RegularPages.ByDate.Reverse) }}
+      <article class="post-entry">
+        <header class="entry-header"><h2>{{ .Title }}</h2></header>
+        <div class="entry-content"><p>{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}…{{ end }}</p></div>
+        {{- $cats := .GetTerms "categories" }}
+        {{- if $cats }}
+        <div class="entry-cats">
+          {{- range $cats }}<span class="tz-chip">{{ .LinkTitle }}</span>{{ end }}
+        </div>
+        {{- end }}
+        <footer class="entry-footer">{{ partial "post_meta.html" . }}</footer>
+        <a class="entry-link" aria-label="post link to {{ .Title | plainify }}" href="{{ .Permalink }}"></a>
+      </article>
+      {{- end }}
+    </div>
+  </section>
+
+  <section class="tz-section">
+    <h2 class="tz-h2">逛逛分类<a class="tz-more" href="{{ "categories/" | relLangURL }}">全部 →</a></h2>
+    <div class="tz-cats">
+      {{- range site.Taxonomies.categories.ByCount }}
+      <a class="tz-cat" href="{{ .Page.Permalink }}">
+        <span class="tz-cat-name">{{ .Page.LinkTitle | default .Name }}</span>
+        <sup class="tz-cat-count">{{ .Count }}</sup>
+      </a>
+      {{- end }}
+    </div>
+  </section>
+</div>
