@@ -2,12 +2,12 @@
 title = '复盘：在 1.6 GiB 的境内服务器上，把博客做成分钟级自愈系统'
 slug = "selfhosted-blog-postmortem"
 date = 2026-09-06T00:00:00+08:00
-lastmod = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-09T00:00:00+08:00
 weight = 1
 categories = ['工程实践']
 tags = ['自托管', 'Hugo', 'SQLite', '运维', 'SRE']
 description = '零付费约束下的完整决策链：为什么不用 Pages 和 Runner、构建为什么放境内、FTS5 为什么要 jieba 预分词、原子发布如何用 8 个真实缺陷喂出来。'
-draft = true
+draft = false
 +++
 
 这台博客跑在一台最便宜的阿里云 ECS 上：2 vCPU、**实际可用内存 1.6 GiB**、固定 3 Mbps 带宽，约束是「除服务器本身外新增付费 0 元」。这篇文章复盘整个工程链路的四个关键决策，以及它们各自是怎么被现实打脸又修正的。
