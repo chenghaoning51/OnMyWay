@@ -316,6 +316,12 @@ systemctl list-timers --no-legend blog-poll.timer 2>/dev/null | awk '{print "  �
 printf '\n下一步（人做的）：\n'
 printf '  1) 备案接入生效前：域名公网维度不做验证（§0.2 K3）；分钟级更新已由 blog-poll.timer 承担\n'
 printf '  2) 证书：在服务器上把 %s/dns-aliyun.ini 的 REPLACE_ME 换成 RAM AK/SK，然后跑\n     bash %s/deploy/install-stage2.sh --issue-cert\n' "$ETC" "$REPO"
-printf '  3) 备案后：GitHub Settings -> Webhooks -> %s/_deploy，Content type raw，\n     密钥用 install-stage2.sh --show-secret 取；再把钩子网段加进 site.env 的 DEPLOY_ALLOW 并重跑本脚本\n' "https://$SITE_DOMAIN"
+printf '  3) 备案后（主链路）：Gitee 仓库 -> 管理 -> WebHooks -> 添加 webHook
+     URL=https://$SITE_DOMAIN"/_deploy  密码=install-stage2.sh --show-secret 取  事件=Push
+     ① Gitee 不公布固定出口网段：从 /var/log/nginx/access.log 找 POST /_deploy 的来源 IP，
+        加进 site.env 的 DEPLOY_ALLOW 后重跑本脚本重渲染 nginx
+     ② Gitee 点「测试」应见 ignored(200)，真 push 应 deploy rc=0
+     （GitHub Webhook 同 URL/同密钥亦可，X-Hub-Signature-256 路径保留）
+'
 printf '\nSTAGE2-DONE pass=%s fail=%s note=%s\n' "$PASS" "$FAIL" "$NOTE"
 exit 0
