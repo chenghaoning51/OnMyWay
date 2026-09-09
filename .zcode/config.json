@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "enabled": true,
+    "timeoutMs": 30000,
+    "events": {
+      "Stop": [
+        {
+          "hooks": [
+            {
+              "type": "process",
+              "command": "C:\\Program Files\\nodejs\\node.exe",
+              "args": [
+                "C:\\Users\\14152\\.zcode\\hooks\\stop-readme-review.mjs"
+              ],
+              "timeoutMs": 25000,
+              "statusMessage": "审查更改是否需要写入 README.md"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

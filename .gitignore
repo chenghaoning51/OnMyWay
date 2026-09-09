@@ -21,6 +21,9 @@ Desktop.ini
 .env
 .env.*
 
+# ZCode 本机 hook 运行状态（审查时间戳指纹等，与仓库内容无关）
+.zcode/hook-state/
+
 # ===== 本机私有 / 过程文档（定稿前不入库）=====
 # 含 IP 与账号，或仍在改动：docs/ 整套暂不公开（脱敏规则见 AGENTS.md）
 docs/
