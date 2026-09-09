@@ -53,7 +53,7 @@ html[data-theme=dark] .highlight { border-color: rgb(49 54 61); }
   --tz-c3-fg: #1864ab;
   --tz-c4-fg: #0c7a51;
   --tz-c5-fg: #9c36b5;
-  --tz-c6-fg: #9a6700;
+  --tz-c6-fg: #8f5f00;
   --tz-theme-bg: #fff8f1;
 }
 html[data-theme="dark"] {
