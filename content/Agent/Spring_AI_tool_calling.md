@@ -1,3 +1,14 @@
++++
+title = 'Spring AI Tool Calling 使用指南'
+slug = "spring-ai-tool-calling"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 3
+categories = ['Agent']
+tags = ['Agent', 'Spring AI']
+description = 'ToolCalling(FunctionCalling)允许模型与一组API或者工具进行交互,增强模型的能力……'
++++
+
 # Spring AI Tool Calling使用指南之我不用JAVA好多年
 
 ## 概述:

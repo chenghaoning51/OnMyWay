@@ -1,3 +1,14 @@
++++
+title = 'Function Call 是什么'
+slug = "xiaolin-function-calling"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 4
+categories = ['Agent']
+tags = ['Agent', 'Function Calling']
+description = '生成文本-Function_Call-操作外部程序……'
++++
+
 # Function Call是什么?
 
 ## 实现了从只会说话到能做事情

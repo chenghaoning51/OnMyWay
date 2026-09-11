@@ -1,3 +1,14 @@
++++
+title = 'Context Management · Context Windows'
+slug = "context-windows"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 3
+categories = ['上下文工程']
+tags = ['Context Engineering', 'Claude']
+description = 'Claude 的 Context Window 机制：Token 限制、Context Rot 与长上下文管理。'
++++
+
 # Context windows
 
 Understand how the context window works, how extended thinking and tool use count toward it, and how to manage context as conversations grow.

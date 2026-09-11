@@ -1,4 +1,15 @@
-### 1. Context Windows: 上下文窗口、Token 限制、Context Rot、长上下文管理
++++
+title = 'Context Engineering · Overview'
+slug = "context-engineering-overview"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 1
+categories = ['上下文工程']
+tags = ['Context Engineering', 'Claude']
+description = 'Context Engineering 综述：Context Window、Token 限制、Context Rot 与长上下文管理。'
++++
+
+## 1. Context Windows: 上下文窗口、Token 限制、Context Rot、长上下文管理
 
 [https://platform.claude.com/docs/en/build-with-claude/context-windows](https://platform.claude.com/docs/en/build-with-claude/context-windows?utm_source=chatgpt.com)
 

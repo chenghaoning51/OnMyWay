@@ -1,3 +1,14 @@
++++
+title = 'Context Management · Compaction'
+slug = "context-compaction"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 2
+categories = ['上下文工程']
+tags = ['Context Engineering', 'Claude']
+description = 'Claude 的 Server-side Compaction：自动压缩会话上下文以突破窗口限制。'
++++
+
 # Compaction
 
 Server-side context compaction for managing long conversations that approaching context window limits

@@ -1,3 +1,14 @@
++++
+title = 'Function Calling（工具调用）'
+slug = "function-calling"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 1
+categories = ['Agent']
+tags = ['Agent', 'Function Calling']
+description = 'Function Calling 的原理与实战：让模型通过结构化输出调用外部工具与 API。'
++++
+
 //我说句实在话,这个菜鸟教程写的好简单也挺烂的,不过很容易看懂吧,还真是菜鸟教程,而且代码又臭又长
 
 # Function Calling(工具调用)

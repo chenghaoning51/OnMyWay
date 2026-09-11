@@ -1,3 +1,14 @@
++++
+title = 'Spring AI Tools'
+slug = "spring-ai-tools"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 2
+categories = ['Agent']
+tags = ['Agent', 'Spring AI']
+description = 'Tool是agents调用来执行操作的组件,通过定义良好的输入和输出来让模型和外部世界交互……'
++++
+
 # Tools
 
 ## 定义:

@@ -1,3 +1,14 @@
++++
+title = 'Context Management · Context Editing'
+slug = "context-editing"
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
+weight = 4
+categories = ['上下文工程']
+tags = ['Context Engineering', 'Claude']
+description = 'Claude 的 Context Editing：自动清理过时的工具调用结果以管理对话上下文。'
++++
+
 # Context editing
 
 Automatically manage conversation context as it grows with context editing
