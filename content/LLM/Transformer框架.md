@@ -1,8 +1,8 @@
 +++
 title = 'Transformer 架构'
 slug = "llm-transformer"
-date = 2026-09-09T00:00:00+08:00
-lastmod = 2026-09-09T00:00:00+08:00
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
 weight = 2
 categories = ['LLM']
 tags = ['Transformer', '注意力机制', 'PyTorch']

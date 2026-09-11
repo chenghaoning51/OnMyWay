@@ -1,15 +1,15 @@
 +++
 title = 'NLP 基础概念'
 slug = "llm-nlp-basics"
-date = 2026-09-09T00:00:00+08:00
-lastmod = 2026-09-09T00:00:00+08:00
+date = 2026-09-06T00:00:00+08:00
+lastmod = 2026-09-06T00:00:00+08:00
 weight = 1
 categories = ['LLM']
 tags = ['NLP', '词向量', 'Datawhale']
 description = 'NLP 基础：规则方法到统计学习再到深度学习，文本表示与词向量演进。'
 +++
 
-## 第一章:NLP基础概念
+# 第一章：NLP基础概念
 
 NPL: Natural Language Processing(自然语言处理)
 使计算机能够理解和处理人类语言,实现人机交流
