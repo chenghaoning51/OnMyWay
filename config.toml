@@ -13,6 +13,7 @@ enableGitInfo = true             # lastmod 取 git 提交时间，配合阶段 2
 enableRobotsTXT = true
 enableEmoji = true
 summaryLength = 70
+ignoreFiles = ['(?i)[\\/]content[\\/]Frameworks[\\/]LangChain[\\/](repos|\.playwright-mcp)([\\/]|$)']
 
 [pagination]
   pagerSize = 10

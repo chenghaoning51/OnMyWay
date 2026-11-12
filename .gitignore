@@ -36,6 +36,10 @@ image/
 _probe*
 tools/
 
+# 本机精读用的第三方 LangChain 应用克隆，不入库
+content/Frameworks/LangChain/repos/
+content/Frameworks/LangChain/.playwright-mcp/
+
 # 含服务器公网 IP 的本机诊断脚本（部署用脚本不在此列，须保持无凭据）
 scripts/preflight.ps1
 scripts/probe-network.ps1
